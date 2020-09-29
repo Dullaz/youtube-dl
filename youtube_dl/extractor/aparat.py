@@ -48,14 +48,18 @@ class AparatIE(InfoExtractor):
 
         options = self._parse_json(
             self._search_regex(
-                r'options\s*=\s*JSON\.parse\(\s*(["\'])(?P<value>(?:(?!\1).)+)\1\s*\)',
-                webpage, 'options', group='value'),
-            video_id)
-
-        player = options['plugins']['sabaPlayerPlugin']
-
+                r'options\s*=\s*(?P<value>{(.*)})\s*;',
+                webpage, 'options', group='value')
+            , video_id)
+        multiSRC = options['multiSRC']
+        
+        player = self._parse_json(
+            self._search_regex(r'window\.uxData\.single\s*=\s*JSON\.parse\(\s*(["\'])(?P<value>(?:(?!\1).)+)\1\s*\)',
+            webpage, 'value', group='value')
+            , video_id)["video"]
+        
         formats = []
-        for sources in player['multiSRC']:
+        for sources in multiSRC:
             for item in sources:
                 if not isinstance(item, dict):
                     continue
@@ -85,7 +89,7 @@ class AparatIE(InfoExtractor):
         info = self._search_json_ld(webpage, video_id, default={})
 
         if not info.get('title'):
-            info['title'] = player['title']
+            info['title'] = player.get('title') or self._og_search_title(webpage)
 
         return merge_dicts(info, {
             'id': video_id,
